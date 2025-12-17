@@ -64,22 +64,19 @@ def _normalize_text(value: str) -> str:
     return value.strip().lower()
 
 
-def filter_tech_companies(csv_path: Path, max_companies: int) -> pd.DataFrame:
-    df = pd.read_csv(csv_path)
+def export_skilled_sponsors(df: pd.DataFrame, output_path: Path) -> pd.DataFrame:
+    skilled_df = _filter_skilled_worker(df)
+    skilled_df.to_csv(output_path, index=False)
+    logger.info("Saved Skilled Worker sponsors to %s (%d rows)", output_path, len(skilled_df))
+    return skilled_df
+
+
+def filter_tech_companies(df: pd.DataFrame, max_companies: int) -> pd.DataFrame:
     company_column = _find_company_column(df)
-    route_column = _find_route_column(df)
-
-    if route_column:
-        skilled_mask = df[route_column].fillna("").astype(str).str.contains("skilled worker", case=False)
-        df = df[skilled_mask]
-        if df.empty:
-            logger.warning("No Skilled Worker sponsors found in %s", csv_path)
-    else:
-        logger.warning("Unable to locate visa route column; skipping Skilled Worker filtering")
-
-    df["_name"] = df[company_column].fillna("")
-    mask = df["_name"].apply(lambda val: _looks_like_tech(val))
-    filtered = df[mask].copy()
+    skilled_df = _filter_skilled_worker(df)
+    skilled_df["_name"] = skilled_df[company_column].fillna("")
+    mask = skilled_df["_name"].apply(lambda val: _looks_like_tech(val))
+    filtered = skilled_df[mask].copy()
     filtered = filtered.head(max_companies)
     filtered["company_hash"] = filtered["_name"].apply(_stable_hash)
     return filtered
@@ -111,6 +108,18 @@ def _find_route_column(df: pd.DataFrame) -> Optional[str]:
     return None
 
 
+def _filter_skilled_worker(df: pd.DataFrame) -> pd.DataFrame:
+    route_column = _find_route_column(df)
+    if not route_column:
+        logger.warning("Unable to locate visa route column; returning original sponsor list")
+        return df.copy()
+    mask = df[route_column].fillna("").astype(str).str.contains("skilled worker", case=False)
+    skilled = df[mask].copy()
+    if skilled.empty:
+        logger.warning("No Skilled Worker sponsors found after filtering")
+    return skilled
+
+
 def _looks_like_tech(name: str) -> bool:
     text = _normalize_text(name)
     return any(keyword in text for keyword in TECH_KEYWORDS)
@@ -118,10 +127,3 @@ def _looks_like_tech(name: str) -> bool:
 
 def _stable_hash(value: str) -> str:
     return hashlib.sha1(value.encode("utf-8")).hexdigest()
-
-
-def derive_career_page(name: str, overrides: Optional[dict[str, str]] = None) -> Optional[str]:
-    if overrides and name in overrides:
-        return overrides[name]
-    slug = _normalize_text(name).replace(" ", "-")
-    return f"https://{slug}.com/careers"

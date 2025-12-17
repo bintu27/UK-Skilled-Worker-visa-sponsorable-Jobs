@@ -16,6 +16,7 @@ class JobOpportunity:
     visa_likelihood: str | None = None
     resume_match_score: int | None = None
     matched_resume: Optional[str] = None
+    llm_reason: Optional[str] = None
 
     def job_id(self) -> str:
         return f"{self.company}|{self.title}|{self.url}"

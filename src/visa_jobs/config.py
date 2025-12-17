@@ -49,6 +49,10 @@ class AppConfig:
         return self.data_dir / "jobs_ranked.csv"
 
     @property
+    def scored_jobs_path(self) -> Path:
+        return self.data_dir / "jobs_scored.csv"
+
+    @property
     def seen_jobs_path(self) -> Path:
         return self.data_dir / "jobs_seen.json"
 
@@ -57,8 +61,12 @@ class AppConfig:
         return self.data_dir / "sponsor_register.csv"
 
     @property
-    def jobs_csv_path(self) -> Path:
-        return self.data_dir / "jobs.csv"
+    def skilled_companies_path(self) -> Path:
+        return self.data_dir / "companies_skilled.csv"
+
+    @property
+    def career_pages_path(self) -> Path:
+        return self.data_dir / "tech_career_pages.csv"
 
     @property
     def log_path(self) -> Path:

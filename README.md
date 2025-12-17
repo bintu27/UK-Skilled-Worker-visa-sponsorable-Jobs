@@ -8,7 +8,7 @@ Production-grade Python tool to discover UK Skilled Worker visa-sponsorable QA /
 - Scrapes QA/SDET/Automation roles from career pages with Playwright.
 - Rejects junior, manual-only, or contract roles and deduplicates across runs.
 - Scores each job against every PDF resume in `./resumes` via LLM or heuristics, selecting the best match per job.
-- Caps results per run using `DAILY_JOB_LIMIT` and exports `jobs_raw.csv`, `jobs_ranked.csv`, and `jobs_seen.json`.
+- Caps results per run using `DAILY_JOB_LIMIT` and exports structured CSVs for sponsors, career pages, and scored QA roles.
 
 ## Quickstart
 1. Install dependencies (Python 3.11):
@@ -34,9 +34,10 @@ Environment variables:
 - `CAREER_PAGES_FILE`: JSON file of `{ "Company Name": "https://example.com/careers" }` overrides.
 
 ## Outputs
-- `data/jobs.csv`: filtered sponsor list (Skilled Worker tech companies + derived career URLs).
-- `data/jobs_raw.csv`: all scraped QA-like links with metadata.
-- `data/jobs_ranked.csv`: filtered, scored list ranked by resume match and QA relevance.
+- `data/companies_skilled.csv`: every sponsor in the register that offers the Skilled Worker route (requirement #1).
+- `data/tech_career_pages.csv`: tech/software sponsors with a validated (HTTP 200) career page discovered via DuckDuckGo (requirement #2).
+- `data/jobs_raw.csv`: every QA/SDET link harvested from the validated career pages before scoring.
+- `data/jobs_scored.csv`: QA roles enriched with job descriptions + visa/relevance/resume match scores (requirement #3).
 - `data/jobs_seen.json`: persisted deduplication store.
 
 ## Notes
