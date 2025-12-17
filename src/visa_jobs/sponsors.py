@@ -19,6 +19,10 @@ REGISTER_PAGE_URL = "https://www.gov.uk/government/publications/register-of-lice
 def download_sponsor_register(config: AppConfig) -> Path:
     """Download the UK Home Office register of licensed sponsors."""
     config.data_dir.mkdir(parents=True, exist_ok=True)
+    if config.sponsor_csv_path.exists():
+        logger.info("Using cached sponsor register at %s", config.sponsor_csv_path)
+        return config.sponsor_csv_path
+
     resolved_url = config.sponsor_register_url
     content: bytes
 

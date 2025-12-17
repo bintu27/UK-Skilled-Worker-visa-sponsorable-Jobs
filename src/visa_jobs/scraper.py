@@ -22,8 +22,15 @@ async def scrape_careers(
     discovered_pages: list[dict] = []
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        try:
+            browser = await p.chromium.launch(headless=True, args=["--disable-gpu", "--single-process"])
+            browser_name = "chromium"
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Chromium launch failed (%s); falling back to Firefox", exc)
+            browser = await p.firefox.launch(headless=True)
+            browser_name = "firefox"
         context = await browser.new_context()
+        logger.info("Using %s browser context for scraping", browser_name)
 
         async def bound_scrape(company: str) -> None:
             async with semaphore:
