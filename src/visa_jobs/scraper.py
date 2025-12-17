@@ -2,76 +2,54 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Iterable, List
+from typing import Iterable, List, Tuple
 
-from playwright.async_api import async_playwright, BrowserContext, Page
+from playwright.async_api import async_playwright
 
-from .config import EXCLUSION_KEYWORDS, QA_KEYWORDS
+from .careers import extract_qa_jobs, find_real_career_page
 from .model import JobOpportunity
 
 logger = logging.getLogger(__name__)
 
 
-async def _extract_job_links(page: Page) -> list[JobOpportunity]:
-    anchors = await page.query_selector_all("a")
-    jobs: list[JobOpportunity] = []
-    for anchor in anchors:
-        text = (await anchor.inner_text()).strip()
-        href = await anchor.get_attribute("href")
-        if not href or not text:
-            continue
-        lower_text = text.lower()
-        if any(keyword in lower_text for keyword in QA_KEYWORDS) and not any(
-            block in lower_text for block in EXCLUSION_KEYWORDS
-        ):
-            url = href if href.startswith("http") else page.url.rstrip("/") + "/" + href.lstrip("/")
-            jobs.append(
-                JobOpportunity(
-                    company="",
-                    title=text,
-                    location="",
-                    url=url,
-                    source=page.url,
-                    snippet=text,
-                )
-            )
-    return jobs
-
-
-async def _scrape_company(context: BrowserContext, company: str, career_url: str) -> list[JobOpportunity]:
-    page = await context.new_page()
-    try:
-        await page.goto(career_url, wait_until="domcontentloaded", timeout=30000)
-        await page.wait_for_timeout(1000)
-        jobs = await _extract_job_links(page)
-        for job in jobs:
-            job.company = company
-            job.location = job.location or (await page.title())
-        if not jobs:
-            logger.info("No QA roles found on %s", career_url)
-        return jobs
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Failed to scrape %s (%s): %s", company, career_url, exc)
-        return []
-    finally:
-        await page.close()
-
-
-async def scrape_careers(companies: Iterable[tuple[str, str]], concurrent_browsers: int = 4) -> List[JobOpportunity]:
+async def scrape_careers(
+    companies: Iterable[str],
+    concurrent_browsers: int = 4,
+) -> Tuple[List[JobOpportunity], List[dict]]:
+    """Discover real career pages and extract QA jobs for each company."""
     semaphore = asyncio.Semaphore(concurrent_browsers)
     results: list[JobOpportunity] = []
+    discovered_pages: list[dict] = []
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context()
 
-        async def bound_scrape(company: str, url: str) -> None:
+        async def bound_scrape(company: str) -> None:
             async with semaphore:
-                jobs = await _scrape_company(context, company, url)
-                results.extend(jobs)
+                career_url = await find_real_career_page(company, context=context)
+                if not career_url:
+                    logger.info("Skipping %s: no validated career page", company)
+                    return
+                discovered_pages.append({"company": company, "career_page_url": career_url})
+                jobs = await extract_qa_jobs(career_url, company, context=context)
+                if not jobs:
+                    logger.info("No QA jobs extracted for %s (%s)", company, career_url)
+                    return
+                for job in jobs:
+                    results.append(
+                        JobOpportunity(
+                            company=job["company_name"],
+                            title=job["job_title"],
+                            location="",
+                            url=job["job_url"],
+                            source=job["career_page_url"],
+                            snippet=job["job_description"],
+                        )
+                    )
 
-        tasks = [bound_scrape(company, url) for company, url in companies]
+        tasks = [bound_scrape(company) for company in companies]
         await asyncio.gather(*tasks)
         await context.close()
         await browser.close()
-    return results
+    return results, discovered_pages

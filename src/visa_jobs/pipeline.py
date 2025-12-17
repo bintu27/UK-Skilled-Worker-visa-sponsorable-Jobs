@@ -13,7 +13,7 @@ from .model import JobOpportunity
 from .persistence import append_seen_jobs, load_seen_jobs
 from .resume import load_resumes
 from .scraper import scrape_careers
-from .sponsors import derive_career_page, download_sponsor_register, filter_tech_companies
+from .sponsors import download_sponsor_register, filter_tech_companies
 
 logger = logging.getLogger(__name__)
 
@@ -24,27 +24,21 @@ def run_pipeline(config: AppConfig) -> None:
     sponsor_csv = download_sponsor_register(config)
     tech_companies_df = filter_tech_companies(sponsor_csv, config.max_companies)
 
-    companies_with_urls: list[tuple[str, str]] = []
-    career_urls: list[str] = []
-    for _, row in tech_companies_df.iterrows():
-        name = row["_name"]
-        url = derive_career_page(name, config.career_page_overrides)
-        companies_with_urls.append((name, url))
-        career_urls.append(url)
+    company_names = tech_companies_df["_name"].tolist()
 
-    if career_urls:
-        tech_companies_df = tech_companies_df.copy()
-        tech_companies_df["career_page_url"] = career_urls
-        export_columns = ["_name", "career_page_url", "Town/City", "County", "Route", "Type & Rating"]
-        present_columns = [col for col in export_columns if col in tech_companies_df.columns]
-        jobs_export = tech_companies_df[present_columns].rename(columns={"_name": "company"})
-        jobs_export.to_csv(config.jobs_csv_path, index=False)
-        logger.info("Saved sponsor job targets to %s", config.jobs_csv_path)
-
-    logger.info("Scraping %d companies for QA roles", len(companies_with_urls))
-    jobs: List[JobOpportunity] = asyncio.run(
-        scrape_careers(companies_with_urls, concurrent_browsers=config.concurrent_browsers)
+    logger.info("Scraping %d companies for QA roles", len(company_names))
+    jobs, discovered_pages = asyncio.run(
+        scrape_careers(company_names, concurrent_browsers=config.concurrent_browsers)
     )
+
+    if discovered_pages:
+        jobs_export = pd.DataFrame(discovered_pages)
+        source_df = tech_companies_df.rename(columns={"_name": "company"})
+        jobs_export = jobs_export.merge(source_df, on="company", how="left")
+        export_columns = ["company", "career_page_url", "Town/City", "County", "Route", "Type & Rating"]
+        present_columns = [col for col in export_columns if col in jobs_export.columns]
+        jobs_export[present_columns].to_csv(config.jobs_csv_path, index=False)
+        logger.info("Saved verified career pages to %s", config.jobs_csv_path)
 
     logger.info("Discovered %d potential jobs", len(jobs))
     raw_df = pd.DataFrame([asdict(job) for job in jobs])
