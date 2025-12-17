@@ -7,6 +7,8 @@ from typing import Dict, List
 
 import pandas as pd
 
+SKIP_COMPANY_KEYWORDS = ["retail", "training", "care", "support", "taxi", "airport", "hospitality"]
+
 from .config import AppConfig
 from .llm import LLMEvaluator
 from .model import JobOpportunity
@@ -18,6 +20,11 @@ from .sponsors import download_sponsor_register, export_skilled_sponsors, filter
 logger = logging.getLogger(__name__)
 
 
+def _should_skip_company(name: str) -> bool:
+    lower = name.lower()
+    return any(keyword in lower for keyword in SKIP_COMPANY_KEYWORDS)
+
+
 def run_pipeline(config: AppConfig) -> None:
     config.ensure_directories()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -26,11 +33,16 @@ def run_pipeline(config: AppConfig) -> None:
     skilled_df = export_skilled_sponsors(sponsor_df, config.skilled_companies_path)
     tech_companies_df = filter_tech_companies(skilled_df, config.max_companies)
 
-    company_names = tech_companies_df["_name"].tolist()
+    company_names = [name for name in tech_companies_df["_name"].tolist() if not _should_skip_company(name)]
+    company_names = company_names[: config.search_batch_size]
 
     logger.info("Scraping %d companies for QA roles", len(company_names))
     jobs, discovered_pages = asyncio.run(
-        scrape_careers(company_names, concurrent_browsers=config.concurrent_browsers)
+        scrape_careers(
+            company_names,
+            concurrent_browsers=config.concurrent_browsers,
+            search_result_limit=config.search_result_limit,
+        )
     )
 
     jobs_export = pd.DataFrame(discovered_pages)

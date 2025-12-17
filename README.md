@@ -28,6 +28,8 @@ Environment variables:
 - `DAILY_JOB_LIMIT` (default `25`): max ranked jobs per run.
 - `MAX_COMPANIES` (default `150`): number of tech sponsors to probe.
 - `CONCURRENT_BROWSERS` (default `4`): Playwright concurrency.
+- `SEARCH_BATCH_SIZE` (default `20`): max companies probed per run.
+- `SEARCH_RESULT_LIMIT` (default `5`): number of search results inspected per company.
 - `SPONSOR_REGISTER_URL`: override Home Office CSV URL.
 - `RESUMES_DIR`, `DATA_DIR`: custom input/output paths.
 - `OPENAI_API_KEY`, `LLM_MODEL`: enable OpenAI scoring; otherwise heuristics are used.

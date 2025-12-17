@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 async def scrape_careers(
     companies: Iterable[str],
     concurrent_browsers: int = 4,
+    search_result_limit: int = 5,
 ) -> Tuple[List[JobOpportunity], List[dict]]:
     """Discover real career pages and extract QA jobs for each company."""
     semaphore = asyncio.Semaphore(concurrent_browsers)
@@ -34,7 +35,9 @@ async def scrape_careers(
 
         async def bound_scrape(company: str) -> None:
             async with semaphore:
-                career_url = await find_real_career_page(company, context=context)
+                career_url = await find_real_career_page(
+                    company, context=context, max_results=search_result_limit
+                )
                 if not career_url:
                     logger.info("Skipping %s: no validated career page", company)
                     return

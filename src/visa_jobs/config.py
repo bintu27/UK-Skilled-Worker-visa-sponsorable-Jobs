@@ -19,6 +19,8 @@ class AppConfig:
     resumes_dir: Path = Path(os.getenv("RESUMES_DIR", "resumes"))
     daily_job_limit: int = int(os.getenv("DAILY_JOB_LIMIT", "25"))
     max_companies: int = int(os.getenv("MAX_COMPANIES", "150"))
+    search_batch_size: int = int(os.getenv("SEARCH_BATCH_SIZE", "20"))
+    search_result_limit: int = int(os.getenv("SEARCH_RESULT_LIMIT", "5"))
     concurrent_browsers: int = int(os.getenv("CONCURRENT_BROWSERS", "4"))
     llm_model: str = os.getenv("LLM_MODEL", "gpt-4o-mini")
     openai_api_key: str | None = os.getenv("OPENAI_API_KEY")
