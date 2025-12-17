@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import asdict
 from typing import Dict, List
 
 import pandas as pd
@@ -35,7 +36,7 @@ def run_pipeline(config: AppConfig) -> None:
     )
 
     logger.info("Discovered %d potential jobs", len(jobs))
-    raw_df = pd.DataFrame([job.__dict__ for job in jobs])
+    raw_df = pd.DataFrame([asdict(job) for job in jobs])
     raw_df.to_csv(config.raw_jobs_path, index=False)
 
     seen_ids = load_seen_jobs(config.seen_jobs_path)
@@ -49,14 +50,14 @@ def run_pipeline(config: AppConfig) -> None:
         if job.job_id() in seen_ids:
             continue
         for resume_name, resume_text in resumes.items():
-            llm_output = evaluator.evaluate(job.__dict__, resume_text)
+            llm_output = evaluator.evaluate(asdict(job), resume_text)
             job.qa_relevance = int(llm_output.get("qa_relevance", 0))
             job.visa_likelihood = str(llm_output.get("visa_likelihood", "Low"))
             job.resume_match_score = int(llm_output.get("resume_match_score", 0))
             job.matched_resume = resume_name
             if job.resume_match_score < 60:
                 continue
-            ranked_records.append(job.__dict__)
+            ranked_records.append(asdict(job))
         new_job_ids.add(job.job_id())
         if len(ranked_records) >= config.daily_job_limit:
             break
