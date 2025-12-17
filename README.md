@@ -13,14 +13,14 @@ Production-grade Python tool to discover UK Skilled Worker visa-sponsorable QA /
 ## Quickstart
 1. Install dependencies (Python 3.11):
    ```bash
-   pip install -r requirements.txt
-   playwright install chromium
+   python3.11 -m pip install -r requirements.txt
+   python3.11 -m playwright install chromium
    ```
 2. Place one or more PDF resumes in the `resumes/` directory.
 3. (Optional) Add `career_pages.json` mapping sponsor names to explicit career page URLs.
 4. Run the pipeline:
    ```bash
-   python main.py
+   python3.11 main.py
    ```
 
 ## Configuration

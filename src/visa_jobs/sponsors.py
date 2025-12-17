@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 from pathlib import Path
 from typing import List, Optional
 
@@ -12,15 +13,51 @@ from .config import TECH_KEYWORDS, AppConfig
 
 logger = logging.getLogger(__name__)
 
+REGISTER_PAGE_URL = "https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers"
+
 
 def download_sponsor_register(config: AppConfig) -> Path:
     """Download the UK Home Office register of licensed sponsors."""
     config.data_dir.mkdir(parents=True, exist_ok=True)
-    response = httpx.get(config.sponsor_register_url, timeout=30)
-    response.raise_for_status()
-    config.sponsor_csv_path.write_bytes(response.content)
-    logger.info("Downloaded sponsor register to %s", config.sponsor_csv_path)
+    resolved_url = config.sponsor_register_url
+    content: bytes
+
+    if not resolved_url.endswith(".csv"):
+        resolved_url = _discover_latest_register_url(resolved_url)
+
+    try:
+        content = _download_csv(resolved_url)
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404:
+            logger.warning("Register URL %s returned 404. Attempting to discover the latest asset link.", resolved_url)
+            resolved_url = _discover_latest_register_url()
+            content = _download_csv(resolved_url)
+        else:
+            raise
+
+    config.sponsor_csv_path.write_bytes(content)
+    logger.info("Downloaded sponsor register from %s to %s", resolved_url, config.sponsor_csv_path)
     return config.sponsor_csv_path
+
+
+def _download_csv(url: str) -> bytes:
+    response = httpx.get(url, timeout=30)
+    response.raise_for_status()
+    return response.content
+
+
+def _discover_latest_register_url(page_url: Optional[str] = None) -> str:
+    page = page_url or REGISTER_PAGE_URL
+    response = httpx.get(page, timeout=30)
+    response.raise_for_status()
+    matches = re.findall(r"https://assets\.publishing\.service\.gov\.uk/[^\"]+\.csv", response.text)
+    worker_links = [link for link in matches if "worker" in link.lower()]
+    candidates = worker_links or matches
+    if not candidates:
+        raise ValueError(f"Unable to locate sponsor register CSV link on {page}")
+    latest_url = candidates[0]
+    logger.info("Discovered latest sponsor register asset %s", latest_url)
+    return latest_url
 
 
 def _normalize_text(value: str) -> str:
