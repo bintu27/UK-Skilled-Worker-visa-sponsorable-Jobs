@@ -7,9 +7,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List
 
 
-DEFAULT_SPONSOR_URL = (
-    "https://assets.publishing.service.gov.uk/media/66601991b3b95ff2592c19a1/register-of-licensed-sponsors-worker.csv"
-)
+DEFAULT_SPONSOR_URL = "https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers"
 
 
 @dataclass(slots=True)
@@ -57,6 +55,10 @@ class AppConfig:
     @property
     def sponsor_csv_path(self) -> Path:
         return self.data_dir / "sponsor_register.csv"
+
+    @property
+    def jobs_csv_path(self) -> Path:
+        return self.data_dir / "jobs.csv"
 
     @property
     def log_path(self) -> Path:

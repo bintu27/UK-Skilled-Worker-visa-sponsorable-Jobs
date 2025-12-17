@@ -4,7 +4,7 @@ Production-grade Python tool to discover UK Skilled Worker visa-sponsorable QA /
 
 ## Features
 - Downloads the UK Home Office Register of Licensed Sponsors automatically.
-- Filters to technology/software-oriented sponsors.
+- Filters to technology/software-oriented sponsors offering the Skilled Worker route.
 - Scrapes QA/SDET/Automation roles from career pages with Playwright.
 - Rejects junior, manual-only, or contract roles and deduplicates across runs.
 - Scores each job against every PDF resume in `./resumes` via LLM or heuristics, selecting the best match per job.
@@ -13,14 +13,14 @@ Production-grade Python tool to discover UK Skilled Worker visa-sponsorable QA /
 ## Quickstart
 1. Install dependencies (Python 3.11):
    ```bash
-   pip install -r requirements.txt
-   playwright install chromium
+   python3.11 -m pip install -r requirements.txt
+   python3.11 -m playwright install chromium
    ```
 2. Place one or more PDF resumes in the `resumes/` directory.
 3. (Optional) Add `career_pages.json` mapping sponsor names to explicit career page URLs.
 4. Run the pipeline:
    ```bash
-   python main.py
+   python3.11 main.py
    ```
 
 ## Configuration
@@ -34,6 +34,7 @@ Environment variables:
 - `CAREER_PAGES_FILE`: JSON file of `{ "Company Name": "https://example.com/careers" }` overrides.
 
 ## Outputs
+- `data/jobs.csv`: filtered sponsor list (Skilled Worker tech companies + derived career URLs).
 - `data/jobs_raw.csv`: all scraped QA-like links with metadata.
 - `data/jobs_ranked.csv`: filtered, scored list ranked by resume match and QA relevance.
 - `data/jobs_seen.json`: persisted deduplication store.
